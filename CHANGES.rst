@@ -7,3 +7,9 @@ Changes
 ~~~~~~~~~~~~~~~~
 
 - Initial effort.
+
+0.1 (2015-12-15)
+~~~~~~~~~~~~~~~~
+
+- Adaptation from the rocky sources.
+- First draft documentation.
