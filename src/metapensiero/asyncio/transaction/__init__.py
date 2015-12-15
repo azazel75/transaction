@@ -73,7 +73,7 @@ class Transaction:
         """
         trans = trans_ref()
         if trans and trans.open:
-            msg = ("A non automatic transaction is still open: %r", self)
+            msg = ("A transaction has not been closed: %r", trans)
             if RELAXED_TRANSACTION_END:
                 logger.warning(*msg)
             else:
