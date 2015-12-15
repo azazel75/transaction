@@ -144,6 +144,7 @@ class Transaction:
              'open' if self.open else 'closed')
 
     @staticmethod
+    @asyncio.coroutine
     def wait_all(timeout=None, loop=None, registry=None):
         """Return a future that will be complete when the pending coros of
         the transactions will complete, effectively ending all of them.
@@ -152,6 +153,7 @@ class Transaction:
         global TRANSACTIONS
         registry = registry or TRANSACTIONS
         loop = loop or asyncio.get_event_loop()
+
         # collect pending transactions
         coros = set()
         for task_id, transactions in registry.items():
@@ -160,8 +162,7 @@ class Transaction:
         if coros:
             result = asyncio.wait(coros, loop=loop, timeout=timeout)
         else:
-            result = asyncio.Future(loop=loop)
-            result.set_result(None)
+            result = None
         return result
 
     def _task_remove_cb(self, task):
@@ -176,6 +177,6 @@ begin = Transaction.begin
 def end(loop=None, registry=None, task=None):
     """End the current defined transaction."""
     trans = get(None, loop, registry, task)
-    return yield from trans.end()
+    return (yield from trans.end())
 
 wait_all = Transaction.wait_all
