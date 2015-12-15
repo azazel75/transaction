@@ -64,8 +64,11 @@ class Transaction:
         trans_list = registry.get(task_id)
         if not trans_list:
             registry[task_id] = trans_list = []
-        trans_list.append(cls((task_id, len(trans_list)), loop, registry))
-        return trans_list[-1]
+        trans = cls((task_id, len(trans_list)), loop, registry)
+        trans_list.append(trans)
+        task.add_done_callback(functools.partial(cls._owner_task_finalization_cb,
+                                                 weakref.ref(trans)))
+        return trans
 
     @classmethod
     def _owner_task_finalization_cb(cls, trans_ref, task):
