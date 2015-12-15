@@ -24,6 +24,11 @@ RELAXED_TRANSACTION_END = False
 
 _nodefault = object()
 
+try:
+    # travis tests compatibility?!
+    from asyncio import ensure_future
+except ImportError:
+    ensure_future = asyncio.async
 
 class TransactionError(Exception):
     pass
