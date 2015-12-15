@@ -102,7 +102,7 @@ class Transaction:
             if PY35:
                 assert inspect.isawaitable(coro)
             if asyncio.iscoroutine(coro):
-                task = asyncio.ensure_future(coro, loop=self.loop)
+                task = ensure_future(coro, loop=self.loop)
             else:
                 task = coro
             if task not in self.coros:
