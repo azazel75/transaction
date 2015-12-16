@@ -3,13 +3,14 @@
 Changes
 -------
 
-0.0 (unreleased)
-~~~~~~~~~~~~~~~~
-
-- Initial effort.
-
 0.1 (2015-12-15)
 ~~~~~~~~~~~~~~~~
 
-- Adaptation from the rocky sources.
-- First draft documentation.
+- Adaptation from the rocky sources
+- First draft documentation
+
+0.2 (2015-12-16)
+~~~~~~~~~~~~~~~~
+
+- Document some details about testing
+- Add some checks on end()
