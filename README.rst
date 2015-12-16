@@ -72,10 +72,20 @@ methods and awaitable classes.
 The coroutines will be scheduled in the order they have been created.
 
 At a certain point, you may want  to ensure that all the remaining
-coroutines are executed you mai use the coroutine ``transaction.wait_all()``.
+coroutines are executed you may use the coroutine
+``transaction.wait_all()``, doing so will end all the remaining open
+transactions.
+
+Testing
++++++++
+
+To run the tests you should run the following at the package root::
+
+  python setup.py test
+
 
 Build status
 ++++++++++++
 
-.. image:: https://travis-ci.org/azazel75/transaction.svg?branch=master
-    :target: https://travis-ci.org/azazel75/transaction
+.. image:: https://travis-ci.org/azazel75/metapensiero.transaction.svg?branch=master
+    :target: https://travis-ci.org/azazel75/metapensiero.transaction
