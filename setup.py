@@ -22,7 +22,7 @@ with open(os.path.join(here, 'version.txt'), encoding='utf-8') as f:
 setup(
     name="metapensiero.asyncio.transaction",
     version=VERSION,
-    url="https://github.com/azazel75/transaction",
+    url="https://github.com/azazel75/metapensiero.asyncio.transaction",
 
     description="Handle coroutines from synchronous functions or methods (like special methods)",
     long_description=README + u'\n\n' + CHANGES,
