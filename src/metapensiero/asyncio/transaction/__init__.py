@@ -115,6 +115,8 @@ class Transaction:
     @asyncio.coroutine
     def end(self):
         """Close an ongoing transaction."""
+        if not self.open:
+            raise TransactionError("This transaction is closed already")
         logger.debug('Ending transaction: %r', self)
         result = yield from asyncio.gather(*self.coros, loop=self.loop)
         self.open = False
