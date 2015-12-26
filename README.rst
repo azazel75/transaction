@@ -10,9 +10,9 @@
  metapensiero.asyncio.transaction
 ==================================
 
- :author: Alberto Berti
- :contact: alberto@metapensiero.it
- :license: GNU General Public License version 3 or later
+:author: Alberto Berti
+:contact: alberto@metapensiero.it
+:license: GNU General Public License version 3 or later
 
 Handle coroutines from synchronous functions or methods (like special methods)
 ==============================================================================
@@ -36,7 +36,9 @@ Usage
 +++++
 
 Given a scenario where a coroutine is called from the ``__setattr___``
-method, this is how to deal with the situation::
+method, this is how to deal with the situation:
+
+.. code:: python
 
   import asyncio
   from metapensiero.async import transaction
@@ -59,7 +61,9 @@ method, this is how to deal with the situation::
       inst.foo = 'bar'
       yield from trans.end()
 
-In python 3.5, the ``external_coro`` can be written as::
+In python 3.5, the ``external_coro`` can be written as:
+
+.. code:: python
 
   async def external_coro():
       inst = Example()
