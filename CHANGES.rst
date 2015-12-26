@@ -14,3 +14,8 @@ Changes
 
 - Document some details about testing
 - Add some checks on end()
+
+0.3 (2015-12-26)
+~~~~~~~~~~~~~~~~
+
+- Fix packaging
