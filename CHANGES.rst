@@ -19,3 +19,8 @@ Changes
 ~~~~~~~~~~~~~~~~
 
 - Fix packaging
+
+0.4 (2015-12-27)
+~~~~~~~~~~~~~~~~
+
+- Documentation fixes
