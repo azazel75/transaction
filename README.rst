@@ -17,8 +17,8 @@
 Handle coroutines from synchronous functions or methods (like special methods)
 ==============================================================================
 
-Goals
-+++++
+Goal
+++++
 
 This package helps handling such cases when there is a side effect
 that is coded as a coroutine and the code block that needs it cannot
@@ -31,6 +31,10 @@ This package will give you the tools to ensure that even if the
 computation is not immediate, the execution of the coroutine(s) is
 guranteed to happen in the context of the coroutine that is calling
 the special method.
+
+A package that works in tandem with this is `metapensiero.signal`__
+
+__ https://pypi.python.org/pypi/metapensiero.signal
 
 Installation
 ++++++++++++
