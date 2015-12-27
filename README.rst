@@ -32,6 +32,13 @@ computation is not immediate, the execution of the coroutine(s) is
 guranteed to happen in the context of the coroutine that is calling
 the special method.
 
+Installation
+++++++++++++
+
+To install the package execute the following command::
+
+  $ pip install metapensiero.asyncio.transaction
+
 Usage
 +++++
 
