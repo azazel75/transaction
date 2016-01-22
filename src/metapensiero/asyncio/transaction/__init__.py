@@ -73,7 +73,9 @@ class Transaction:
             registry[task_id] = trans_list = []
         trans = cls((task_id, len(trans_list)), loop, registry)
         trans_list.append(trans)
-        task.add_done_callback(functools.partial(cls._owner_task_finalization_cb,
+        if task:
+            # task my be None because the code isn't scheduled by asyncio
+            task.add_done_callback(functools.partial(cls._owner_task_finalization_cb,
                                                  weakref.ref(trans)))
         return trans
 
@@ -108,7 +110,8 @@ class Transaction:
             else:
                 task = coro
             if task not in self.coros:
-                task.add_done_callback(self._task_remove_cb)
+                if isinstance(task, asyncio.Future):
+                    task.add_done_callback(self._task_remove_cb)
                 self.coros.append(task)
                 logger.debug("Added task %r to trans %r", task, self)
 

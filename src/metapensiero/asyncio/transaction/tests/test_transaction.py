@@ -88,3 +88,27 @@ def test_non_closed_transaction(event_loop):
     # crumb left
     assert len(done) == 1
     assert len(pending) == 0
+
+def test_calling_from_non_task():
+
+    tasks_ids = set()
+    results = []
+
+    @asyncio.coroutine
+    def stashed_coro():
+        nonlocal results
+        results.append('called stashed_coro')
+
+    def non_coro_func():
+        tran = transaction.get()
+        c = stashed_coro()
+        tran.add(c)
+
+    # create a new event loop because i get a closed one with
+    # get_event_loop(), probably a conflict with pytest-asyncio
+    loop = asyncio.new_event_loop()
+    tran = transaction.begin(loop=loop)
+    non_coro_func()
+    assert len(results) == 0
+    loop.run_until_complete(tran.end())
+    assert len(results) == 1
