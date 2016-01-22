@@ -29,7 +29,7 @@ or a Python special method.
 
 This package will give you the tools to ensure that even if the
 computation is not immediate, the execution of the coroutine(s) is
-guranteed to happen in the context of the coroutine that is calling
+guaranteed to happen in the context of the coroutine that is calling
 the special method.
 
 A package that works in tandem with this is `metapensiero.signal`__
