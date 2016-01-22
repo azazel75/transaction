@@ -24,3 +24,9 @@ Changes
 ~~~~~~~~~~~~~~~~
 
 - Documentation fixes
+
+0.5 (2016-01-22)
+~~~~~~~~~~~~~~~~
+
+- Fix behavior when transaction.begin() is called from code not
+  already running in a task

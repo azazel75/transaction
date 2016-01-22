@@ -10,9 +10,9 @@
  metapensiero.asyncio.transaction
 ==================================
 
-:author: Alberto Berti
-:contact: alberto@metapensiero.it
-:license: GNU General Public License version 3 or later
+ :author: Alberto Berti
+ :contact: alberto@metapensiero.it
+ :license: GNU General Public License version 3 or later
 
 Handle coroutines from synchronous functions or methods (like special methods)
 ==============================================================================
