@@ -30,3 +30,8 @@ Changes
 
 - Fix behavior when transaction.begin() is called from code not
   already running in a task
+
+0.6 (2016-01-27)
+~~~~~~~~~~~~~~~~
+
+- support a callback function when adding coros to the transaction
