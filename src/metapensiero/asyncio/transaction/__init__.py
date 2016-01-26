@@ -100,8 +100,10 @@ class Transaction:
         self.open = True
         logger.debug('Beginning transaction: %r', self)
 
-    def add(self, *coros):
-        """Add a coroutine or awaitable to the set managed by this transaction."""
+    def add(self, *coros, cback=None):
+        """Add a coroutine or awaitable to the set managed by this
+        transaction.
+        """
         for coro in coros:
             if PY35:
                 assert inspect.isawaitable(coro)
@@ -112,6 +114,8 @@ class Transaction:
             if task not in self.coros:
                 if isinstance(task, asyncio.Future):
                     task.add_done_callback(self._task_remove_cb)
+                    if cback:
+                        task.add_done_callback(cback)
                 self.coros.append(task)
                 logger.debug("Added task %r to trans %r", task, self)
 
