@@ -122,10 +122,8 @@ class Transaction:
     @asyncio.coroutine
     def end(self):
         """Close an ongoing transaction."""
-        if not self.open:
-            raise TransactionError("This transaction is closed already")
+        result = yield from self.wait()
         logger.debug('Ending transaction: %r', self)
-        result = yield from asyncio.gather(*self.coros, loop=self.loop)
         self.open = False
         self.remove(self)
         del self.registry
@@ -189,8 +187,21 @@ class Transaction:
         self.coros.remove(task)
         logger.debug("Removed task %r from trans %r", task, self)
 
+    @asyncio.coroutine
+    def wait(self):
+        """Wait for this coros to complete, expunge them but not close this
+        transaction. Useful when there is one 'global' transaction per taks.
+        """
+        if not self.open:
+            raise TransactionError("This transaction is closed already")
+        logger.debug('Waiting for this transaction coros to complete: %r', self)
+        result = yield from asyncio.gather(*self.coros, loop=self.loop)
+        self.coros.clear()
+        return result
+
 get = Transaction.get
 begin = Transaction.begin
+
 
 @asyncio.coroutine
 def end(loop=None, registry=None, task=None):
@@ -199,3 +210,9 @@ def end(loop=None, registry=None, task=None):
     return (yield from trans.end())
 
 wait_all = Transaction.wait_all
+
+@asyncio.coroutine
+def wait(loop=None, registry=None, task=None):
+    """Wait for the current defined transaction's coroutines to complete."""
+    trans = get(None, loop, registry, task)
+    return (yield from trans.wait())
