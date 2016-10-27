@@ -122,14 +122,20 @@ class Transaction:
 
     @asyncio.coroutine
     def end(self):
-        """Close an ongoing transaction."""
-        result = yield from self.wait()
-        logger.debug('Ending transaction: %r', self)
-        self.open = False
-        self.remove(self)
-        del self.registry
-        del self.coros
-        del self.loop
+        """Close an ongoing transaction. It will ask for the results of the future
+        returned by the call to ``wait()`` just to raise possible
+        exceptions.
+        """
+        try:
+            # reraise possible excepions
+            result = yield from self.wait()
+        finally:
+            logger.debug('Ending transaction: %r', self)
+            self.open = False
+            self.remove(self)
+            del self.registry
+            del self.coros
+            del self.loop
         return result
 
     @classmethod
@@ -196,7 +202,7 @@ class Transaction:
         if not self.open:
             raise TransactionError("This transaction is closed already")
         logger.debug('Waiting for this transaction coros to complete: %r', self)
-        result = yield from asyncio.gather(*self.coros, loop=self.loop)
+        result = asyncio.gather(*self.coros, loop=self.loop)
         self.coros.clear()
         return result
 
