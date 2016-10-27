@@ -24,7 +24,8 @@ RELAXED_TRANSACTION_END = False
 
 _nodefault = object()
 
-__all__ = ('Transaction', 'get', 'begin', 'end', 'wait_all', 'RELAXED_TRANSACTION_END')
+__all__ = ('Transaction', 'get', 'begin', 'end', 'wait_all',
+           'RELAXED_TRANSACTION_END')
 
 try:
     # travis tests compatibility?!
