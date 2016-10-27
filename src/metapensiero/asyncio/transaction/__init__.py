@@ -191,8 +191,9 @@ class Transaction:
 
     def _task_remove_cb(self, task):
         """Remove a scheduled coroutine from the set of this transaction."""
-        self.coros.remove(task)
-        logger.debug("Removed task %r from trans %r", task, self)
+        if task in self.coros:
+            self.coros.remove(task)
+            logger.debug("Removed task %r from trans %r", task, self)
 
     @asyncio.coroutine
     def wait(self):
