@@ -6,8 +6,8 @@
 # :Copyright: Copyright (C) 2015 Alberto Berti
 #
 
+from io import open
 import os
-from codecs import open
 
 from setuptools import setup, find_packages
 
