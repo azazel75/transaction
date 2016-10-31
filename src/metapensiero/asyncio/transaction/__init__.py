@@ -47,7 +47,6 @@ class Transaction:
         transaction is missing either raises an exception or returns
         the passed-in 'default'.
         """
-        global TRANSACTIONS
         task = task or asyncio.Task.current_task(loop=loop)
         registry = registry or TRANSACTIONS
         task_id = hash(task)
@@ -65,7 +64,6 @@ class Transaction:
     @classmethod
     def begin(cls, loop=None, registry=None, task=None):
         """Begin a new transaction"""
-        global TRANSACTIONS
         task = task or asyncio.Task.current_task(loop=loop)
         registry = registry or TRANSACTIONS
         task_id = hash(task)
@@ -174,7 +172,6 @@ class Transaction:
         the transactions will complete, effectively ending all of them.
         """
         # TODO: take loop into account
-        global TRANSACTIONS
         registry = registry or TRANSACTIONS
         loop = loop or asyncio.get_event_loop()
 
