@@ -91,7 +91,6 @@ def test_non_closed_transaction(event_loop):
 
 def test_calling_from_non_task():
 
-    tasks_ids = set()
     results = []
 
     @asyncio.coroutine
