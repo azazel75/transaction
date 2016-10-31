@@ -24,7 +24,8 @@ setup(
     version=VERSION,
     url="https://github.com/azazel75/metapensiero.asyncio.transaction",
 
-    description="Handle coroutines from synchronous functions or methods (like special methods)",
+    description="Handle coroutines from synchronous functions or methods "
+    "(like special methods)",
     long_description=README + u'\n\n' + CHANGES,
 
     author="Alberto Berti",
@@ -47,7 +48,18 @@ setup(
     namespace_packages=['metapensiero', 'metapensiero.asyncio'],
 
     install_requires=['setuptools'],
-    extras_require={'dev': ['metapensiero.tool.bump_version', 'distutils']},
+    extras_require={
+        'dev': [
+            'metapensiero.tool.bump_version',
+            'distutils'
+        ],
+        'test': [
+            'pytest',
+            'pytest-asyncio'
+        ]
+    },
     setup_requires=['pytest-runner'],
-    tests_require=['pytest', 'pytest-asyncio'],
+    tests_require=[
+        'metapensiero.asyncio.transaction[test]'
+    ],
 )
