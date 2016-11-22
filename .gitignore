@@ -3,7 +3,9 @@
 *.mo
 *.py[cod]
 /.coverage
+/.eggs/
 /.emacs.desktop.lock
+/.tox/
 /build/
 /dist/
 /emacs.desktop

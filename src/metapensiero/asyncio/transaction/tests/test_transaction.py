@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 # :Project:  metapensiero.asyncio.transaction -- tests
-# :Created:    mar 15 dic 2015 15:16:56 CET
-# :Author:    Alberto Berti <alberto@metapensiero.it>
-# :License:   GNU General Public License version 3 or later
+# :Created:  mar 15 dic 2015 15:16:56 CET
+# :Author:   Alberto Berti <alberto@metapensiero.it>
+# :License:  GNU General Public License version 3 or later
 #
 
 import asyncio
@@ -91,7 +91,6 @@ def test_non_closed_transaction(event_loop):
 
 def test_calling_from_non_task():
 
-    tasks_ids = set()
     results = []
 
     @asyncio.coroutine

@@ -6,8 +6,8 @@
 # :Copyright: Copyright (C) 2015 Alberto Berti
 #
 
+from io import open
 import os
-from codecs import open
 
 from setuptools import setup, find_packages
 
@@ -38,6 +38,7 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.4",
         "Programming Language :: Python :: 3.5",
+        "Programming Language :: Python :: 3.6",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: GNU General Public License (GPL)",
         ],

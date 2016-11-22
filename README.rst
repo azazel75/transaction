@@ -144,6 +144,12 @@ To run the tests you should run the following at the package root::
 
   python setup.py test
 
+Alternatively, you can use ``tox`` that will automatically setup the test
+virtualenv with needed pieces, and executes the test suite for all the
+supported versions of Python. You can run it against a specific one with::
+
+  tox -e py35
+
 
 Build status
 ~~~~~~~~~~~~
