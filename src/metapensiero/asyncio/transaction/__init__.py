@@ -191,7 +191,7 @@ class Transaction:
 
     def _task_remove_cb(self, task):
         """Remove a scheduled coroutine from the set of this transaction."""
-        if task in self.coros:
+        if self.coros and task in self.coros:
             self.coros.remove(task)
             logger.debug("Removed task %r from trans %r", task, self)
 
