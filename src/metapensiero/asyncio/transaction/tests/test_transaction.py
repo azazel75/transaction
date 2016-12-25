@@ -11,9 +11,9 @@ import pytest
 
 from metapensiero.asyncio import transaction
 
+
 @pytest.mark.asyncio
-@asyncio.coroutine
-def test_transaction_per_task(event_loop):
+async def test_transaction_per_task(event_loop):
 
     tasks_ids = set()
     results = []
@@ -38,10 +38,9 @@ def test_transaction_per_task(event_loop):
         # async with tran:
         #     non_coro_func()
         non_coro_func()
-        yield from tran.end()
+        await tran.end()
 
-
-    yield from asyncio.gather(
+    await asyncio.gather(
         external_coro(),
         external_coro(),
         loop=event_loop
@@ -51,9 +50,9 @@ def test_transaction_per_task(event_loop):
     assert len(results) == 2
     assert results == ['called stashed_coro', 'called stashed_coro']
 
+
 @pytest.mark.asyncio
-@asyncio.coroutine
-def test_non_closed_transaction(event_loop):
+async def test_non_closed_transaction(event_loop):
 
     tasks_ids = set()
     results = []
@@ -81,13 +80,13 @@ def test_non_closed_transaction(event_loop):
         #     non_coro_func()
         non_coro_func()
 
-
-    yield from external_coro()
-    done, pending = yield from transaction.wait_all()
+    await external_coro()
+    done, pending = await transaction.wait_all()
     # the raise from the callback gets sucked up, this is the only
     # crumb left
     assert len(done) == 1
     assert len(pending) == 0
+
 
 def test_calling_from_non_task():
 
@@ -113,9 +112,9 @@ def test_calling_from_non_task():
     loop.run_until_complete(tran.end())
     assert len(results) == 1
 
+
 @pytest.mark.asyncio
-@asyncio.coroutine
-def test_transaction_per_task_with_cback(event_loop):
+async def test_transaction_per_task_with_cback(event_loop):
 
     results = []
 
@@ -140,9 +139,9 @@ def test_transaction_per_task_with_cback(event_loop):
         # async with tran:
         #     non_coro_func()
         non_coro_func()
-        yield from tran.end()
+        await tran.end()
 
-    yield from asyncio.gather(
+    await asyncio.gather(
         external_coro(),
         loop=event_loop
     )
@@ -150,9 +149,9 @@ def test_transaction_per_task_with_cback(event_loop):
     assert len(results) == 2
     assert results == ['called stashed_coro', 'result from stashed coro']
 
+
 @pytest.mark.asyncio
-@asyncio.coroutine
-def test_transaction_per_task_with_cback2(event_loop):
+async def test_transaction_per_task_with_cback2(event_loop):
 
     results = []
 
@@ -180,9 +179,9 @@ def test_transaction_per_task_with_cback2(event_loop):
         # async with tran:
         #     a = A()
         a = A()
-        yield from tran.end()
+        await tran.end()
 
-    yield from asyncio.gather(
+    await asyncio.gather(
         external_coro(),
         loop=event_loop
     )
