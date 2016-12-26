@@ -21,12 +21,10 @@ logger = logging.getLogger(__name__)
 
 TRANSACTIONS = {}
 
-RELAXED_TRANSACTION_END = False
 
 _nodefault = object()
 
-__all__ = ('Transaction', 'get', 'begin', 'end', 'wait_all',
-           'RELAXED_TRANSACTION_END')
+__all__ = ('Transaction', 'get', 'begin', 'end', 'wait_all')
 
 try:
     # travis tests compatibility?!
@@ -87,8 +85,8 @@ class Transaction:
         """
         trans = trans_ref()
         if trans and trans.open:
-            msg = ("A transaction has not been closed: %r", trans)
-            if RELAXED_TRANSACTION_END:
+            msg = ("A transaction has not been closed: %r, but it has a parent", trans)
+            if trans.parent:
                 logger.warning(*msg)
             else:
                 logger.error(*msg)
