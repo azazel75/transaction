@@ -223,16 +223,14 @@ get = Transaction.get
 begin = Transaction.begin
 
 
-@asyncio.coroutine
 def end(loop=None, registry=None, task=None):
     """End the current defined transaction."""
-    trans = get(None, loop, registry, task)
-    return (yield from trans.end())
+    trans = get(None, loop=loop, registry=registry, task=task)
+    return trans.end()
 
 wait_all = Transaction.wait_all
 
-@asyncio.coroutine
 def wait(loop=None, registry=None, task=None):
     """Wait for the current defined transaction's coroutines to complete."""
-    trans = get(None, loop, registry, task)
-    return (yield from trans.wait())
+    trans = get(None, loop=loop, registry=registry, task=task)
+    return trans.wait()
