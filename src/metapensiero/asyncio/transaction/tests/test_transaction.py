@@ -194,3 +194,34 @@ def test_transaction_per_task_with_cback2(event_loop):
 
     assert len(results) == 2
     assert results == ['called stashed_coro', 'result from stashed coro']
+
+@pytest.mark.asyncio
+@asyncio.coroutine
+def test_switch_to_other_task(event_loop):
+
+    outer_trans = None
+    log = []
+
+    @asyncio.coroutine
+    def on_another_task():
+        log.append('on async')
+        trans = transaction.get(None)
+        assert trans.parent is outer_trans
+
+    def sync_func():
+        trans = transaction.get(None, loop=event_loop)
+        assert trans is outer_trans
+        another = asyncio.ensure_future(on_another_task())
+        log.append('on sync')
+        trans.add(another)
+
+    @asyncio.coroutine
+    def external_coro():
+        nonlocal outer_trans
+        t = transaction.begin()
+        outer_trans = t
+        sync_func()
+        yield from transaction.end()
+
+    yield from external_coro()
+    assert log == ['on sync', 'on async']
