@@ -61,7 +61,7 @@ class Transaction:
         return result
 
     @classmethod
-    def begin(cls, loop=None, registry=None, task=None):
+    def begin(cls, *, loop=None, registry=None, task=None, parent=None):
         """Begin a new transaction"""
         task = task or asyncio.Task.current_task(loop=loop)
         registry = registry or TRANSACTIONS
@@ -69,12 +69,13 @@ class Transaction:
         trans_list = registry.get(task_id)
         if not trans_list:
             registry[task_id] = trans_list = []
-        trans = cls((task_id, len(trans_list)), loop, registry)
+        trans = cls((task_id, len(trans_list)), loop=loop, registry=registry,
+                    parent=parent)
         trans_list.append(trans)
         if task:
-            # task my be None because the code isn't scheduled by asyncio
+            # task may be None because the code isn't scheduled by asyncio
             task.add_done_callback(functools.partial(cls._owner_task_finalization_cb,
-                                                 weakref.ref(trans)))
+                                                     weakref.ref(trans)))
         return trans
 
     @classmethod
@@ -90,32 +91,39 @@ class Transaction:
                 logger.error(*msg)
                 raise TransactionError(msg[0] % msg[1])
 
-    def __init__(self, trans_id, loop=None, registry=None):
+    def __init__(self, trans_id, *, loop=None, registry=None, parent=None):
         self.registry = registry or TRANSACTIONS
         self.coros = []
         self.loop = loop or asyncio.get_event_loop()
         self.id = trans_id
         self.open = True
+        self.ending = False
+        self.ending_fut = asyncio.Future(loop=self.loop)
+        self.parent = parent
         logger.debug('Beginning transaction: %r', self)
 
     def add(self, *coros, cback=None):
         """Add a coroutine or awaitable to the set managed by this
         transaction.
         """
+        if self.ending or not open:
+            raise ValueError("Cannot add coros to an ending or closed"
+                             " transaction: %r" % self)
         for coro in coros:
             if PY35:
                 assert inspect.isawaitable(coro)
-            if asyncio.iscoroutine(coro):
-                task = ensure_future(coro, loop=self.loop)
-            else:
-                task = coro
-            if task not in self.coros:
-                if isinstance(task, asyncio.Future):
-                    task.add_done_callback(self._task_remove_cb)
+            if coro not in self.coros:
+                if cback:
+                    coro = asyncio.ensure_future(coro, loop=self.loop)
+                if isinstance(coro, asyncio.Future):
+                    sub_trans = Transaction.begin(loop=self.loop, task=coro,
+                                                  parent=self)
+                    coro.add_done_callback(functools.partial(self._task_remove_cb,
+                                                             sub_trans))
                     if cback:
-                        task.add_done_callback(cback)
-                self.coros.append(task)
-                logger.debug("Added task %r to trans %r", task, self)
+                        coro.add_done_callback(cback)
+                self.coros.append(coro)
+                logger.debug("Added task %r to trans %r", coro, self)
 
     @asyncio.coroutine
     def end(self):
@@ -123,17 +131,22 @@ class Transaction:
         returned by the call to ``wait()`` just to raise possible
         exceptions.
         """
-        try:
-            # reraise possible excepions
-            result = yield from self.wait()
-        finally:
-            logger.debug('Ending transaction: %r', self)
-            self.open = False
-            self.remove(self)
-            del self.registry
-            del self.coros
-            del self.loop
-        return result
+        if not self.ending:
+            self.ending = True
+            try:
+                # reraise possible excepions
+                result = yield from self.wait()
+                self.ending_fut.set_result(result)
+            except Exception as e:
+                self.ending_fut.set_exception(e)
+            finally:
+                logger.debug('Ending transaction: %r', self)
+                self.open = False
+                self.remove(self)
+                del self.registry
+                del self.coros
+                del self.loop
+        return self.ending_fut
 
     @classmethod
     def remove(cls, trans):
@@ -185,11 +198,14 @@ class Transaction:
             result = None
         return result
 
-    def _task_remove_cb(self, task):
+    def _task_remove_cb(self, sub_trans, task):
         """Remove a scheduled coroutine from the set of this transaction."""
-        if self.coros and task in self.coros:
-            self.coros.remove(task)
-            logger.debug("Removed task %r from trans %r", task, self)
+        def remove_task(trans_end):
+            trans_end.result()
+            if self.coros and task in self.coros:
+                self.coros.remove(task)
+                logger.debug("Removed task %r from trans %r", task, self)
+        asyncio.ensure_future(sub_trans.end()).add_done_callback(remove_task)
 
     @asyncio.coroutine
     def wait(self):
