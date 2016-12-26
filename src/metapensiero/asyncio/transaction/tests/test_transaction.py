@@ -13,7 +13,8 @@ from metapensiero.asyncio import transaction
 
 
 @pytest.mark.asyncio
-async def test_transaction_per_task(event_loop):
+@asyncio.coroutine
+def test_transaction_per_task(event_loop):
 
     tasks_ids = set()
     results = []
@@ -38,9 +39,10 @@ async def test_transaction_per_task(event_loop):
         # async with tran:
         #     non_coro_func()
         non_coro_func()
-        await tran.end()
+        yield from tran.end()
 
-    await asyncio.gather(
+
+    yield from asyncio.gather(
         external_coro(),
         external_coro(),
         loop=event_loop
@@ -52,7 +54,8 @@ async def test_transaction_per_task(event_loop):
 
 
 @pytest.mark.asyncio
-async def test_non_closed_transaction(event_loop):
+@asyncio.coroutine
+def test_non_closed_transaction(event_loop):
 
     tasks_ids = set()
     results = []
@@ -80,8 +83,9 @@ async def test_non_closed_transaction(event_loop):
         #     non_coro_func()
         non_coro_func()
 
-    await external_coro()
-    done, pending = await transaction.wait_all()
+
+    yield from external_coro()
+    done, pending = yield from transaction.wait_all()
     # the raise from the callback gets sucked up, this is the only
     # crumb left
     assert len(done) == 1
@@ -114,7 +118,8 @@ def test_calling_from_non_task():
 
 
 @pytest.mark.asyncio
-async def test_transaction_per_task_with_cback(event_loop):
+@asyncio.coroutine
+def test_transaction_per_task_with_cback(event_loop):
 
     results = []
 
@@ -139,9 +144,9 @@ async def test_transaction_per_task_with_cback(event_loop):
         # async with tran:
         #     non_coro_func()
         non_coro_func()
-        await tran.end()
+        yield from tran.end()
 
-    await asyncio.gather(
+    yield from asyncio.gather(
         external_coro(),
         loop=event_loop
     )
@@ -151,7 +156,8 @@ async def test_transaction_per_task_with_cback(event_loop):
 
 
 @pytest.mark.asyncio
-async def test_transaction_per_task_with_cback2(event_loop):
+@asyncio.coroutine
+def test_transaction_per_task_with_cback2(event_loop):
 
     results = []
 
@@ -179,9 +185,9 @@ async def test_transaction_per_task_with_cback2(event_loop):
         # async with tran:
         #     a = A()
         a = A()
-        await tran.end()
+        yield from tran.end()
 
-    await asyncio.gather(
+    yield from asyncio.gather(
         external_coro(),
         loop=event_loop
     )
