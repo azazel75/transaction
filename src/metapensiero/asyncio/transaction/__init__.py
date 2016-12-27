@@ -19,8 +19,8 @@ PY35 = sys.version_info >= (3, 5)
 
 logger = logging.getLogger(__name__)
 
+TMP_CONTEXT = []
 TRANSACTIONS = {}
-
 
 _nodefault = object()
 
@@ -62,6 +62,14 @@ class Transaction:
         else:
             logger.debug('An error happened on context exit:',
                          exc_info=(exc_type, exc, tb))
+        return False
+
+    def __enter__(self):
+        TMP_CONTEXT.append(self)
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        TMP_CONTEXT.pop()
         return False
 
     def __repr__(self):

@@ -254,3 +254,58 @@ def test_transaction_and_gather(event_loop):
 
     r = yield from external_coro()
     assert r == [1, 2]
+
+
+@pytest.mark.asyncio
+@asyncio.coroutine
+def test_transaction_and_future(event_loop):
+
+    master_trans = None
+    end = None
+
+    @asyncio.coroutine
+    def external_coro():
+        nonlocal master_trans
+        trans = transaction.begin(loop=event_loop)
+        master_trans = trans
+        sync()
+        yield from trans.end()
+
+    def sync():
+        trans = transaction.get(None, loop=event_loop)
+        assert trans is not None
+        fut = asyncio.Future(loop=event_loop)
+        # there's no way to have some control on the order callbacks are
+        # called so i we want to have a callback covered by the transaction,
+        # we must add it to the transaction _after_ the callback
+        fut.add_done_callback(future_callback)
+        trans.add(fut)
+        event_loop.call_later(0.5, future_simulated_end, fut)
+
+    def future_simulated_end(future):
+        # this is no man's land, no transaction here
+        trans = transaction.get(None, loop=event_loop)
+        assert trans is None
+        future.set_result('Time passed')
+
+    def future_callback(future):
+        assert future.result() == 'Time passed'
+        # this is no man's land, no transaction here
+        trans = transaction.get(None, loop=event_loop)
+        assert trans is None
+        # but here there's a way to get one because the future was added
+        # to the  transaction
+        trans = transaction.get(None, loop=event_loop, task=future)
+        assert trans is not None and trans.parent is master_trans
+        with trans:
+            func_called_by_callback()
+
+    def func_called_by_callback():
+        nonlocal end
+        trans = transaction.get(None, loop=event_loop)
+        assert trans is not None and trans.parent is master_trans
+        end = 'done!'
+
+    yield from external_coro()
+    assert master_trans is not None
+    assert end == 'done!'
