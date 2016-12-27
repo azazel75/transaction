@@ -86,7 +86,7 @@ class Transaction:
         """Remove a scheduled coroutine from the set of this transaction."""
         def remove_task(trans_end):
             trans_end.result()
-            if self.coros and task in self.coros:
+            if self.open and self.coros and task in self.coros:
                 self.coros.remove(task)
                 logger.debug("Removed task %r from trans %r", task, self)
         asyncio.ensure_future(sub_trans.end()).add_done_callback(remove_task)
