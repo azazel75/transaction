@@ -164,6 +164,9 @@ class Transaction:
                 del self.loop
         return self.ending_fut
 
+    def gather(self, *coros):
+        return asyncio.gather(*self.add(*coros), loop=self.loop)
+
     @classmethod
     def get(cls, default=_nodefault, *, loop=None, registry=None, task=None):
         """Get the ongoing transaction for the current task. if a current
