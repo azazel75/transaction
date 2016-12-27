@@ -109,12 +109,12 @@ class Transaction:
         if self.ending or not open:
             raise ValueError("Cannot add coros to an ending or closed"
                              " transaction: %r" % self)
+        out_coros = []
         for coro in coros:
             if PY35:
                 assert inspect.isawaitable(coro)
             if coro not in self.coros:
-                if cback:
-                    coro = asyncio.ensure_future(coro, loop=self.loop)
+                coro = asyncio.ensure_future(coro, loop=self.loop)
                 if isinstance(coro, asyncio.Future):
                     sub_trans = Transaction.begin(loop=self.loop, task=coro,
                                                   parent=self)
@@ -123,7 +123,9 @@ class Transaction:
                     if cback:
                         coro.add_done_callback(cback)
                 self.coros.append(coro)
-                logger.debug("Added task %r to trans %r", coro, self)
+            out_coros.append(coro)
+        return out_coros
+
 
     @asyncio.coroutine
     def end(self):
