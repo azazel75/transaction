@@ -83,7 +83,7 @@ class Transaction:
         """Warn about non-automatic one left open.
         """
         trans = trans_ref()
-        if trans and trans.open:
+        if trans and trans.open and len(trans.coros) > 0:
             msg = ("A transaction has not been closed: %r, but it has a parent", trans)
             if trans.parent:
                 logger.warning(*msg)
