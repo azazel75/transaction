@@ -40,43 +40,34 @@ class Transaction:
     """A mechanism to store coroutines and consume them later.
     """
 
-    @classmethod
-    def get(cls, default=_nodefault, *, loop=None, registry=None, task=None):
-        """Get the ongoing transaction for the current task. if a current
-        transaction is missing either raises an exception or returns
-        the passed-in 'default'.
-        """
-        task = task or asyncio.Task.current_task(loop=loop)
-        registry = registry or TRANSACTIONS
-        task_id = hash(task)
-        trans_list = registry.get(task_id)
-        if trans_list:
-            result = trans_list[-1]
-        else:
-            if default is _nodefault:
-                raise TransactionError("There's no transaction"
-                                       " begun for task %s" % task_id)
-            else:
-                result = default
-        return result
+    def __init__(self, trans_id, *, loop=None, registry=None, parent=None):
+        self.registry = registry or TRANSACTIONS
+        self.coros = []
+        self.loop = loop or asyncio.get_event_loop()
+        self.id = trans_id
+        self.open = True
+        self.ending = False
+        self.ending_fut = asyncio.Future(loop=self.loop)
+        self.parent = parent
+        logger.debug('Beginning transaction: %r', self)
 
-    @classmethod
-    def begin(cls, *, loop=None, registry=None, task=None, parent=None):
-        """Begin a new transaction"""
-        task = task or asyncio.Task.current_task(loop=loop)
-        registry = registry or TRANSACTIONS
-        task_id = hash(task)
-        trans_list = registry.get(task_id)
-        if not trans_list:
-            registry[task_id] = trans_list = []
-        trans = cls((task_id, len(trans_list)), loop=loop, registry=registry,
-                    parent=parent)
-        trans_list.append(trans)
-        if task:
-            # task may be None because the code isn't scheduled by asyncio
-            task.add_done_callback(functools.partial(cls._owner_task_finalization_cb,
-                                                     weakref.ref(trans)))
-        return trans
+    @asyncio.coroutine
+    def __aenter__(self):
+        return self
+
+    @asyncio.coroutine
+    def __aexit__(self, exc_type, exc, tb):
+        if not exc:
+            yield from self.end()
+        else:
+            logger.debug('An error happened on context exit:',
+                         exc_info=(exc_type, exc, tb))
+        return False
+
+    def __repr__(self):
+        return '<%s id: %s number of items: %d state: %s>' % \
+            (self.__class__.__name__, self.id, len(self.coros),
+             'open' if self.open else 'closed')
 
     @classmethod
     def _owner_task_finalization_cb(cls, trans_ref, task):
@@ -91,16 +82,14 @@ class Transaction:
                 logger.error(*msg)
                 raise TransactionError(msg[0] % msg[1])
 
-    def __init__(self, trans_id, *, loop=None, registry=None, parent=None):
-        self.registry = registry or TRANSACTIONS
-        self.coros = []
-        self.loop = loop or asyncio.get_event_loop()
-        self.id = trans_id
-        self.open = True
-        self.ending = False
-        self.ending_fut = asyncio.Future(loop=self.loop)
-        self.parent = parent
-        logger.debug('Beginning transaction: %r', self)
+    def _task_remove_cb(self, sub_trans, task):
+        """Remove a scheduled coroutine from the set of this transaction."""
+        def remove_task(trans_end):
+            trans_end.result()
+            if self.coros and task in self.coros:
+                self.coros.remove(task)
+                logger.debug("Removed task %r from trans %r", task, self)
+        asyncio.ensure_future(sub_trans.end()).add_done_callback(remove_task)
 
     def add(self, *coros, cback=None):
         """Add a coroutine or awaitable to the set managed by this
@@ -126,6 +115,23 @@ class Transaction:
             out_coros.append(coro)
         return out_coros
 
+    @classmethod
+    def begin(cls, *, loop=None, registry=None, task=None, parent=None):
+        """Begin a new transaction"""
+        task = task or asyncio.Task.current_task(loop=loop)
+        registry = registry or TRANSACTIONS
+        task_id = hash(task)
+        trans_list = registry.get(task_id)
+        if not trans_list:
+            registry[task_id] = trans_list = []
+        trans = cls((task_id, len(trans_list)), loop=loop, registry=registry,
+                    parent=parent)
+        trans_list.append(trans)
+        if task:
+            # task may be None because the code isn't scheduled by asyncio
+            task.add_done_callback(functools.partial(cls._owner_task_finalization_cb,
+                                                     weakref.ref(trans)))
+        return trans
 
     @asyncio.coroutine
     def end(self):
@@ -151,6 +157,26 @@ class Transaction:
         return self.ending_fut
 
     @classmethod
+    def get(cls, default=_nodefault, *, loop=None, registry=None, task=None):
+        """Get the ongoing transaction for the current task. if a current
+        transaction is missing either raises an exception or returns
+        the passed-in 'default'.
+        """
+        task = task or asyncio.Task.current_task(loop=loop)
+        registry = registry or TRANSACTIONS
+        task_id = hash(task)
+        trans_list = registry.get(task_id)
+        if trans_list:
+            result = trans_list[-1]
+        else:
+            if default is _nodefault:
+                raise TransactionError("There's no transaction"
+                                       " begun for task %s" % task_id)
+            else:
+                result = default
+        return result
+
+    @classmethod
     def remove(cls, trans):
         """Remove a transaction from its registry."""
         registry = trans.registry
@@ -162,22 +188,16 @@ class Transaction:
             del registry[trans.id[0]]
 
     @asyncio.coroutine
-    def __aenter__(self):
-        return self
-
-    @asyncio.coroutine
-    def __aexit__(self, exc_type, exc, tb):
-        if not exc:
-            yield from self.end()
-        else:
-            logger.debug('An error happened on context exit:',
-                         exc_info=(exc_type, exc, tb))
-        return False
-
-    def __repr__(self):
-        return '<%s id: %s number of items: %d state: %s>' % \
-            (self.__class__.__name__, self.id, len(self.coros),
-             'open' if self.open else 'closed')
+    def wait(self):
+        """Wait for this coros to complete, expunge them but not close this
+        transaction. Useful when there is one 'global' transaction per taks.
+        """
+        if not self.open:
+            raise TransactionError("This transaction is closed already")
+        logger.debug('Waiting for this transaction coros to complete: %r', self)
+        result = asyncio.gather(*self.coros, loop=self.loop)
+        self.coros.clear()
+        return result
 
     @staticmethod
     @asyncio.coroutine
@@ -200,26 +220,6 @@ class Transaction:
             result = None
         return result
 
-    def _task_remove_cb(self, sub_trans, task):
-        """Remove a scheduled coroutine from the set of this transaction."""
-        def remove_task(trans_end):
-            trans_end.result()
-            if self.coros and task in self.coros:
-                self.coros.remove(task)
-                logger.debug("Removed task %r from trans %r", task, self)
-        asyncio.ensure_future(sub_trans.end()).add_done_callback(remove_task)
-
-    @asyncio.coroutine
-    def wait(self):
-        """Wait for this coros to complete, expunge them but not close this
-        transaction. Useful when there is one 'global' transaction per taks.
-        """
-        if not self.open:
-            raise TransactionError("This transaction is closed already")
-        logger.debug('Waiting for this transaction coros to complete: %r', self)
-        result = asyncio.gather(*self.coros, loop=self.loop)
-        self.coros.clear()
-        return result
 
 get = Transaction.get
 begin = Transaction.begin
