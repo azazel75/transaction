@@ -120,7 +120,7 @@ class Transaction:
         """Begin a new transaction"""
         task = task or asyncio.Task.current_task(loop=loop)
         registry = registry or TRANSACTIONS
-        task_id = hash(task)
+        task_id = id(task)
         trans_list = registry.get(task_id)
         if not trans_list:
             registry[task_id] = trans_list = []
@@ -164,10 +164,12 @@ class Transaction:
         """
         task = task or asyncio.Task.current_task(loop=loop)
         registry = registry or TRANSACTIONS
-        task_id = hash(task)
+        task_id = id(task)
         trans_list = registry.get(task_id)
         if trans_list:
             result = trans_list[-1]
+        elif TMP_CONTEXT:
+            result = TMP_CONTEXT[-1]
         else:
             if default is _nodefault:
                 raise TransactionError("There's no transaction"
