@@ -44,7 +44,8 @@ setup(
         ],
     keywords='',
 
-    packages=find_packages('src'),
+    packages=['metapensiero.asyncio.' + pkg
+              for pkg in find_packages('src/metapensiero/asyncio')],
     package_dir={'': 'src'},
     namespace_packages=['metapensiero', 'metapensiero.asyncio'],
 
