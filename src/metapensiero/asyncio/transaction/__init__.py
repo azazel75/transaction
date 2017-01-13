@@ -98,7 +98,8 @@ class Transaction:
         """
         trans = trans_ref()
         if trans and trans.open and len(trans.coros) > 0:
-            msg = ("A transaction has not been closed: %r, but it has a parent", trans)
+            msg = ("A transaction has not been closed: %r, but it has a parent",
+                   trans)
             if trans.parent:
                 logger.warning(*msg)
             else:
@@ -169,8 +170,8 @@ class Transaction:
             cls._set_transaction_id(task, trans, registry)
             trans._add_finalization_cb(task)
         else:
-            logger.warn('Task not found at creation time, will be searched again '
-                        'later')
+            logger.warn('Task not found at creation time, will be searched'
+                        ' again later')
         return trans
 
     @asyncio.coroutine
@@ -182,7 +183,7 @@ class Transaction:
         if not self.ending:
             self.ending = True
             try:
-                # reraise possible excepions
+                # reraise possible exceptions
                 if len(self.coros):
                     result = yield from self.wait()
                 else:
@@ -204,9 +205,9 @@ class Transaction:
 
     @classmethod
     def get(cls, default=_nodefault, loop=None, *, registry=None, task=None):
-        """Get the ongoing transaction for the current task. if a current
+        """Get the ongoing transaction for the current task. If a current
         transaction is missing either raises an exception or returns
-        the passed-in 'default'.
+        the passed-in `default`.
         """
         task = task or asyncio.Task.current_task(loop=loop)
         registry = registry or TRANSACTIONS

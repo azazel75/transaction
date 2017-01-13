@@ -231,7 +231,6 @@ def test_switch_to_other_task(event_loop):
 @asyncio.coroutine
 def test_transaction_and_gather(event_loop):
 
-
     @asyncio.coroutine
     def external_coro():
         t = transaction.begin()
