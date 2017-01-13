@@ -209,6 +209,8 @@ class Transaction:
         transaction is missing either raises an exception or returns
         the passed-in `default`.
         """
+        if loop is None:
+            loop = asyncio.get_event_loop()
         task = task or asyncio.Task.current_task(loop=loop)
         registry = registry or TRANSACTIONS
         task_id = id(task)
