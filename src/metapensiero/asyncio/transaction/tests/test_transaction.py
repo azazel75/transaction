@@ -88,7 +88,7 @@ def test_non_closed_transaction(event_loop):
     done, pending = yield from transaction.wait_all()
     # the raise from the callback gets sucked up, this is the only
     # crumb left
-    assert len(done) == 2
+    assert len(done) == 1
     assert len(pending) == 0
 
 
@@ -110,7 +110,8 @@ def test_calling_from_non_task():
     # get_event_loop(), probably a conflict with pytest-asyncio
     loop = asyncio.new_event_loop()
     tran = transaction.begin(loop=loop)
-    non_coro_func()
+    with tran:
+        non_coro_func()
     assert len(results) == 0
     loop.run_until_complete(tran.end())
     assert len(results) == 1
@@ -217,10 +218,10 @@ def test_switch_to_other_task(event_loop):
     @asyncio.coroutine
     def external_coro():
         nonlocal outer_trans
-        t = transaction.begin()
+        t = transaction.begin(loop=event_loop)
         outer_trans = t
         sync_func()
-        yield from transaction.end()
+        yield from transaction.end(loop=event_loop)
 
     yield from external_coro()
     assert log == ['on sync', 'on async']
@@ -240,6 +241,7 @@ def test_transaction_and_gather(event_loop):
 
     @asyncio.coroutine
     def coro1():
+        assert event_loop is asyncio.get_event_loop()
         trans = transaction.get(None)
         assert trans is not None
         return 1

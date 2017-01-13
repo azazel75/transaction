@@ -47,8 +47,10 @@ class Transaction:
         self.id = trans_id
         self.open = True
         self.ending = False
-        self.ending_fut = asyncio.Future(loop=self.loop)
+        self.ending_fut = self.loop.create_future()
         self.parent = parent
+        self.children = []
+        self.task_ending_fut = self.loop.create_future()
         logger.debug('Beginning transaction: %r', self)
 
     @asyncio.coroutine
@@ -97,6 +99,10 @@ class Transaction:
         """Warn about non-automatic one left open.
         """
         trans = trans_ref()
+
+        if trans:
+            trans.task_ending_fut.set_result(None)
+
         if trans and trans.open and len(trans.coros) > 0:
             msg = ("A transaction has not been closed: %r, but it has a parent",
                    trans)
@@ -120,22 +126,13 @@ class Transaction:
         transaction.id = (task_id, len(trans_list))
         trans_list.append(transaction)
 
-    def _task_remove_cb(self, sub_trans, task):
-        """Remove a scheduled coroutine from the set of this transaction."""
-        def remove_task(trans_end):
-            trans_end.result()
-            if self.open and self.coros and task in self.coros:
-                self.coros.remove(task)
-                logger.debug("Removed task %r from trans %r", task, self)
-        asyncio.ensure_future(sub_trans.end()).add_done_callback(remove_task)
-
     def add(self, *coros, cback=None):
         """Add a coroutine or awaitable to the set managed by this
         transaction.
         """
-        if self.id is None:
-            raise TrasnsactionError('This transaction is not associated with any'
-                                    ' task')
+        if self.id is None and self not in TMP_CONTEXT:
+            raise TransactionError('This transaction is not associated with any'
+                                   ' task')
         if self.ending or not open:
             raise ValueError("Cannot add coros to an ending or closed"
                              " transaction: %r" % self)
@@ -145,13 +142,11 @@ class Transaction:
                 assert inspect.isawaitable(coro)
             if coro not in self.coros:
                 coro = asyncio.ensure_future(coro, loop=self.loop)
-                if isinstance(coro, asyncio.Future):
-                    sub_trans = Transaction.begin(loop=self.loop, task=coro,
-                                                  parent=self)
-                    coro.add_done_callback(functools.partial(self._task_remove_cb,
-                                                             sub_trans))
-                    if cback:
-                        coro.add_done_callback(cback)
+                sub_trans = Transaction.begin(loop=self.loop, task=coro,
+                                              parent=self)
+                self.children.append(sub_trans)
+                if cback:
+                    coro.add_done_callback(cback)
                 self.coros.append(coro)
             out_coros.append(coro)
         return out_coros
@@ -159,13 +154,14 @@ class Transaction:
     @classmethod
     def begin(cls, loop=None, *, registry=None, task=None, parent=None):
         """Begin a new transaction"""
-        trans = cls(None, loop=loop, registry=registry,
-                    parent=parent)
-        task = task or cls._get_current_task(loop)
+
+        trans = cls(None, loop=loop, registry=registry, parent=parent)
+
         if __debug__:
             import inspect
             trans._caller_info = inspect.stack()[1:5]
 
+        task = task or cls._get_current_task(trans.loop)
         if task:
             cls._set_transaction_id(task, trans, registry)
             trans._add_finalization_cb(task)
@@ -181,7 +177,13 @@ class Transaction:
         exceptions.
         """
         if not self.ending:
+            if self.parent is not None:
+                yield from self.task_ending_fut
+
             self.ending = True
+
+            yield from asyncio.gather(*(c.end() for c in self.children),
+                                      loop=self.loop)
             try:
                 # reraise possible exceptions
                 if len(self.coros):
@@ -198,6 +200,8 @@ class Transaction:
                 del self.registry
                 del self.coros
                 del self.loop
+                del self.parent
+                del self.children
         return self.ending_fut
 
     def gather(self, *coros):
@@ -268,7 +272,8 @@ class Transaction:
         coros = set()
         for task_id, transactions in registry.items():
             for trans in transactions:
-                coros.add(trans.end())
+                if not trans.parent:
+                    coros.add(trans.end())
         if coros:
             result = asyncio.wait(coros, loop=loop, timeout=timeout)
         else:
