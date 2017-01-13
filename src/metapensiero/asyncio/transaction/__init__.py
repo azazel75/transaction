@@ -161,6 +161,10 @@ class Transaction:
         trans = cls(None, loop=loop, registry=registry,
                     parent=parent)
         task = task or cls._get_current_task(loop)
+        if __debug__:
+            import inspect
+            trans._caller_info = inspect.stack()[1:5]
+
         if task:
             cls._set_transaction_id(task, trans, registry)
             trans._add_finalization_cb(task)
