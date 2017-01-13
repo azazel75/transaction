@@ -53,6 +53,13 @@ class Transaction:
 
     @asyncio.coroutine
     def __aenter__(self):
+        if self.id is None:
+            task = self._get_current_task(self.loop)
+            if task:
+                self._set_transaction_id(task, self, self.registry)
+                self._add_finalization_cb(task)
+            else:
+                raise TransactionError('Unable to find the current task')
         return self
 
     @asyncio.coroutine
@@ -77,8 +84,16 @@ class Transaction:
             (self.__class__.__name__, self.id, len(self.coros),
              'open' if self.open else 'closed')
 
-    @classmethod
-    def _owner_task_finalization_cb(cls, trans_ref, task):
+    def _add_finalization_cb(self, task):
+        task.add_done_callback(functools.partial(self._owner_task_finalization_cb,
+                                                 weakref.ref(self)))
+
+    @staticmethod
+    def _get_current_task(loop=None):
+        return asyncio.Task.current_task(loop=loop)
+
+    @staticmethod
+    def _owner_task_finalization_cb(trans_ref, task):
         """Warn about non-automatic one left open.
         """
         trans = trans_ref()
@@ -89,6 +104,20 @@ class Transaction:
             else:
                 logger.error(*msg)
                 raise TransactionError(msg[0] % msg[1])
+
+    @staticmethod
+    def _set_transaction_id(task, transaction, registry=None):
+        if task is None:
+            raise TransactionError('No current task')
+        if transaction.id != None:
+            raise TransactionError('Transaction has an id already')
+        registry = registry or TRANSACTIONS
+        task_id = id(task)
+        trans_list = registry.get(task_id)
+        if not trans_list:
+            registry[task_id] = trans_list = []
+        transaction.id = (task_id, len(trans_list))
+        trans_list.append(transaction)
 
     def _task_remove_cb(self, sub_trans, task):
         """Remove a scheduled coroutine from the set of this transaction."""
@@ -103,6 +132,9 @@ class Transaction:
         """Add a coroutine or awaitable to the set managed by this
         transaction.
         """
+        if self.id is None:
+            raise TrasnsactionError('This transaction is not associated with any'
+                                    ' task')
         if self.ending or not open:
             raise ValueError("Cannot add coros to an ending or closed"
                              " transaction: %r" % self)
@@ -124,21 +156,17 @@ class Transaction:
         return out_coros
 
     @classmethod
-    def begin(cls, *, loop=None, registry=None, task=None, parent=None):
+    def begin(cls, loop=None, *, registry=None, task=None, parent=None):
         """Begin a new transaction"""
-        task = task or asyncio.Task.current_task(loop=loop)
-        registry = registry or TRANSACTIONS
-        task_id = id(task)
-        trans_list = registry.get(task_id)
-        if not trans_list:
-            registry[task_id] = trans_list = []
-        trans = cls((task_id, len(trans_list)), loop=loop, registry=registry,
+        trans = cls(None, loop=loop, registry=registry,
                     parent=parent)
-        trans_list.append(trans)
+        task = task or cls._get_current_task(loop)
         if task:
-            # task may be None because the code isn't scheduled by asyncio
-            task.add_done_callback(functools.partial(cls._owner_task_finalization_cb,
-                                                     weakref.ref(trans)))
+            cls._set_transaction_id(task, trans, registry)
+            trans._add_finalization_cb(task)
+        else:
+            logger.warn('Task not found at creation time, will be searched again '
+                        'later')
         return trans
 
     @asyncio.coroutine
@@ -151,7 +179,10 @@ class Transaction:
             self.ending = True
             try:
                 # reraise possible excepions
-                result = yield from self.wait()
+                if len(self.coros):
+                    result = yield from self.wait()
+                else:
+                    result = None
                 self.ending_fut.set_result(result)
             except Exception as e:
                 self.ending_fut.set_exception(e)
@@ -168,7 +199,7 @@ class Transaction:
         return asyncio.gather(*self.add(*coros), loop=self.loop)
 
     @classmethod
-    def get(cls, default=_nodefault, *, loop=None, registry=None, task=None):
+    def get(cls, default=_nodefault, loop=None, *, registry=None, task=None):
         """Get the ongoing transaction for the current task. if a current
         transaction is missing either raises an exception or returns
         the passed-in 'default'.
@@ -192,24 +223,28 @@ class Transaction:
     @classmethod
     def remove(cls, trans):
         """Remove a transaction from its registry."""
-        registry = trans.registry
-        trans_list = registry[trans.id[0]]
-        assert len(trans_list) > 0
-        top_trans = trans_list.pop()
-        assert trans is top_trans
-        if len(trans_list) == 0:
-            del registry[trans.id[0]]
+        if trans.id:
+            registry = trans.registry
+            trans_list = registry[trans.id[0]]
+            assert len(trans_list) > 0
+            top_trans = trans_list.pop()
+            assert trans is top_trans
+            if len(trans_list) == 0:
+                del registry[trans.id[0]]
 
     @asyncio.coroutine
     def wait(self):
         """Wait for this coros to complete, expunge them but not close this
-        transaction. Useful when there is one 'global' transaction per taks.
+        transaction. Useful when there is one 'global' transaction per task.
         """
         if not self.open:
             raise TransactionError("This transaction is closed already")
-        logger.debug('Waiting for this transaction coros to complete: %r', self)
-        result = asyncio.gather(*self.coros, loop=self.loop)
-        self.coros.clear()
+        if len(self.coros):
+            logger.debug('Waiting for this transaction coros to complete: %r', self)
+            result = asyncio.gather(*self.coros, loop=self.loop)
+            self.coros.clear()
+        else:
+            result = None
         return result
 
     @staticmethod
