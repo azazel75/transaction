@@ -104,13 +104,13 @@ class Transaction:
             trans.task_ending_fut.set_result(None)
 
         if trans and trans.open and len(trans.coros) > 0:
-            msg = ("A transaction has not been closed: %r, but it has a parent",
-                   trans)
+            msg = ("A transaction has not been closed: %r%s",
+                   trans, ", but it has a parent")
             if trans.parent:
                 logger.warning(*msg)
             else:
                 logger.error(*msg)
-                raise TransactionError(msg[0] % msg[1])
+                raise TransactionError(msg[0] % (msg[1], ''))
 
     @staticmethod
     def _set_transaction_id(task, transaction, registry=None):
