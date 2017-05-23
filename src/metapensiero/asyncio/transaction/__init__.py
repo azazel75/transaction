@@ -166,8 +166,8 @@ class Transaction:
             cls._set_transaction_id(task, trans, registry)
             trans._add_finalization_cb(task)
         else:
-            logger.warn('Task not found at creation time, will be searched'
-                        ' again later')
+            logger.warning('Task not found at creation time, will be searched'
+                           ' again later')
         return trans
 
     @asyncio.coroutine
